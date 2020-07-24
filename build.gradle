@@ -1,0 +1,31 @@
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "gradle.plugin.com.spinclass:dreambot:1.2"
+
+    }
+}
+
+plugins {
+    id 'java'
+}
+
+group 'com.nebula'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly files('./libs/dreambot-api.jar')
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+apply plugin: "com.spinclass.gradle.dreambot"
