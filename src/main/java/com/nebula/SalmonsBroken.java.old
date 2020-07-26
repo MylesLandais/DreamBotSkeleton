@@ -1,0 +1,223 @@
+// SOURCE - https://dreambot.org/forums/index.php?/topic/12204-tsalmon-w-sourcecode/
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.IOException;
+
+/*
+import javafx.scene.control.Separator;
+*/
+import org.dreambot.api.methods.map.Area;
+import org.dreambot.api.methods.map.Tile;
+import org.dreambot.api.methods.skills.Skill;
+import org.dreambot.api.methods.tabs.Tab;
+import org.dreambot.api.script.Category;
+import org.dreambot.api.script.ScriptManifest;
+import org.dreambot.api.script.AbstractScript;
+import java.awt.*;
+import javax.imageio.ImageIO;
+import javax.swing.*;
+
+import org.dreambot.api.script.listener.AdvancedMessageListener;
+import java.net.URL;
+import org.dreambot.api.methods.Calculations;
+import java.util.ArrayList;
+import java.util.Random;
+
+import org.dreambot.api.script.listener.InventoryListener;
+import org.dreambot.api.utilities.Timer;
+import org.dreambot.api.wrappers.interactive.NPC;
+import org.dreambot.api.wrappers.items.Item;
+import org.dreambot.api.wrappers.widgets.WidgetChild;
+import org.dreambot.api.wrappers.widgets.message.Message;
+
+@ScriptManifest(author = "Donald Trump", category = Category.MISC, name = "TSalmon", version = 1.0, description = "...")
+public class SalmonsBroken extends AbstractScript implements InventoryListener {
+
+    private Timer timer = new Timer();
+    private Timer timer2 = new Timer();
+    private boolean anti;
+    private boolean anti2;
+    private int timetoanti = randInt(120000, 200000);
+    private Area fisharea = new Area(3242, 3240, 3240, 3251);
+    private int count;
+
+    public enum State {
+        nothing, stop_script, drop, fish, antiban, wait, dialog, selfheal
+    }
+
+    private State getState() {
+
+        if (!getClient().isLoggedIn()) {
+            return State.nothing;
+        } else if (getInventory().isItemSelected()) {
+            return State.selfheal;
+        } else if (getDialogues().canContinue()) {
+            return State.dialog;
+        } else if (getLocalPlayer().getAnimation() == 623) {
+            if (timer2.elapsed() > timetoanti) {
+                return State.antiban;
+            } else {
+                return State.wait;
+            }
+        } else if (!getClientSettings().isShiftInteractionEnabled()) {
+            return State.stop_script;
+        } else if (getInventory().isFull()) {
+            return State.drop;
+        } else if (!getInventory().contains("Feather")) {
+            return State.stop_script;
+        } else if (getInventory().contains("Feather", "Fly fishing rod")) {
+            return State.fish;
+        }
+
+
+        return State.nothing;
+
+    }
+
+    @Override
+    public int onLoop() {
+        switch (getState()) {
+            case selfheal:
+                getMouse().click();
+                break;
+            case dialog:
+                anti2 = true;
+                int iii = randInt(1, 2);
+                if (iii == 1) {
+                    sleep(2500, 15000);
+                    while (getClient().isLoggedIn() && getDialogues().canContinue()) {
+                        getDialogues().continueDialogue();
+                    }
+                } else {
+                    sleep(7500, 30000);
+                    while (getClient().isLoggedIn() && getDialogues().canContinue()) {
+                        getDialogues().continueDialogue();
+                    }
+                }
+                break;
+            case wait:
+                anti = true;
+                getMouse().moveMouseOutsideScreen();
+                break;
+            case antiban:
+                int i = randInt(1, 5);
+                Area random = Area.generateArea(6, getLocalPlayer().getTile());
+                if (i == 1) {
+                    getCamera().rotateToTile(random.getRandomTile());
+                } else if (i == 2) {
+                    getCamera().mouseRotateToTile(random.getRandomTile());
+                } else if (i == 3) {
+                    getTabs().open(Tab.STATS);
+                    sleep(1500, 3400);
+                    getTabs().open(Tab.INVENTORY);
+                } else if (i == 4) {
+                    Area random2 = Area.generateArea(1, getLocalPlayer().getTile());
+                    getMouse().move(random2.getRandomTile());
+                    sleep(1000, 3000);
+                } else if (i == 5) {
+                    NPC spot = getNpcs().closest("Fishing spot");
+                    if (spot != null) {
+                        int ii = randInt(1, 2);
+                        if (ii == 1) {
+                            if (spot.isOnScreen()) {
+                                spot.interactForceLeft("Lure");
+                            }
+                        } else {
+                            spot.interactForceRight("Lure");
+                        }
+                    }
+                }
+                timetoanti = randInt(120000, 300000);
+                int log = timetoanti / 60000;
+                log("NT: " + Integer.toString(log) + "minutes");
+                timer2.reset();
+                break;
+            case fish:
+                if (!anti2 && anti) {
+                    sleep(7500, 25000);
+                    anti = false;
+                }
+                if (!getTabs().isOpen(Tab.INVENTORY)) {
+                    getTabs().open(Tab.INVENTORY);
+                }
+                NPC fishspot = getNpcs().closest("Fishing spot");
+                if (fishspot != null && fishspot.distance() < 10) {
+                    int ii = randInt(1, 2);
+                    if (ii == 1) {
+                        if (fishspot.isOnScreen()) {
+                            fishspot.interactForceLeft("Lure");
+                        }
+                    } else {
+                        fishspot.interactForceRight("Lure");
+                    }
+                    sleepUntil(() -> getLocalPlayer().isInteractedWith(), Calculations.random(3000, 6000));
+                } else {
+                    getWalking().walk(fisharea.getRandomTile());
+                    sleepWalk(Calculations.random(3, 6), Calculations.random(3000, 6000));
+                }
+                break;
+            case drop:
+                getInventory().dropAllExcept("Feather", "Fly fishing rod");
+                break;
+            case stop_script:
+                log("Something went wrong, the script must stop.");
+                stop();
+                break;
+            case nothing:
+                break;
+
+        } return Calculations.random(500,900);
+    }
+
+
+    @Override
+    public void onStart(String... params) {
+
+    }
+
+    @Override
+    public void onStart() {
+        getSkillTracker().start(Skill.FISHING);
+    }
+
+    @Override
+    public void onExit() {
+
+    }
+
+    @Override
+    public void onPaint(Graphics g) {
+        g.setFont(new Font("Arial", Font.BOLD, 12));
+        g.setColor(Color.YELLOW);
+        g.drawString("Runtime: " + timer.formatTime(), 25, 40);
+        g.drawString("State: " + getState().name(), 25, 55);
+        g.drawString("XP (HR): " + getSkillTracker().getGainedExperiencePerHour(Skill.FISHING), 25, 70);
+        g.drawString("Fish Caught (HR): " + timer.getHourlyRate(count), 25, 85);
+    }
+
+    private boolean sleepWalk(int distance, int timeout) {
+        return sleepUntil(() -> !getLocalPlayer().isMoving() || getLocalPlayer().distance(getClient().getDestination()) < distance, timeout);
+    }
+
+    private static int randInt(int min, int max) {
+        Random rand = new Random();
+        int randomNum = rand.nextInt((max - min) + 1) + min;
+        return randomNum;
+    }
+
+    private void customSleep(boolean name) {
+        sleepUntil(() -> name, Calculations.random(2000, 4000));
+    }
+
+    @Override
+    public void onItemChange(Item[] items) {
+        for (Item item : items) {
+            if (item != null && item.getName().equals("Raw salmon") && item.getAmount() > 0) {
+                count++;
+            } else if (item != null && item.getName().equals("Raw trout") && item.getAmount() > 0) {
+                count++;
+            }
+        }
+    }
+}
